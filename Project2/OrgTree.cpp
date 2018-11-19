@@ -3,6 +3,7 @@
 #include "TreeNode.h"
 #include "OrgTree.h"
 #include <fstream>
+//big-theta(1)
 //O(1)
 void OrgTree::setRoot(TREENODEPTR newRoot) {
 	if (root != TREENULLPTR) {
@@ -11,30 +12,38 @@ void OrgTree::setRoot(TREENODEPTR newRoot) {
 	newRoot->leftmostChild = root;
 	root = newRoot;
 }
+//big-theta(1)
 //O(1)
 void OrgTree::addRoot(std::string title, std::string name) {
 	setRoot(new TreeNode(title, name));
 	size++;
 }
+//big-theta(1)
 //O(1)
 unsigned int OrgTree::getSize() {
 	return size;
 }
+//big-theta(1)
 //O(1)
 TREENODEPTR OrgTree::leftmostChild(TREENODEPTR node) {
 	return node->leftmostChild;
 }
+//big-theta(1)
 //O(1)
 TREENODEPTR OrgTree::rightSibling(TREENODEPTR node) {
 	return node->rightSibling;
 }
+//big-theta(n) where n is the size of the sub tree
 //O(n)
 void OrgTree::printSubTree(TREENODEPTR subTreeRoot) {
-	if (root == TREENULLPTR) {
+	if (subTreeRoot == TREENULLPTR) {
 		cout << "Empty tree" << endl;
 		return;
 	}
 	std::cout << subTreeRoot->getTitle() << " : " << subTreeRoot->getName() << std::endl;
+	if (subTreeRoot->leftmostChild == TREENULLPTR){
+		return;
+	}
 	print(subTreeRoot->leftmostChild, 1);
 }
 void OrgTree::print(TREENODEPTR subTreeRoot, int index) {
@@ -68,11 +77,35 @@ TREENODEPTR OrgTree::find(std::string title, TREENODEPTR root) {
 	
 	
 }
+//find time complexity
+//big theta(n)
 //O(n)
 TREENODEPTR OrgTree::find(std::string title) {
 	return find(title, root);
 }
-//O(n)
+//infile = input file
+//current treenode 
+//return the difference between nodes and ")" but does not include the root
+long OrgTree::recursiveRead(istream& infile, TREENODEPTR current) {
+	if (infile.eof()) {
+		return 0;
+	}
+	std::string line;
+	getline(infile, line);
+	//if ever the number of ")" exceeds the number of employees 
+	if (!current) {
+		return -1;
+	}
+	if (line.find(')') == std::string::npos) {		
+		return 1 + recursiveRead(infile, readHire(current, line.substr(0, line.find(",")), line.substr(line.find(",") + 1)));
+	}	
+	return -1 + recursiveRead(infile, current->parent);
+}
+//read time complexity
+//average case is on a balanced tree of n nodes with each node having x children
+//big-theta(nlogbaseX(n))
+//O(n^2) worst 
+//worst case happens when you have a root with one child and that node has n-2 children
 bool OrgTree::read(std::string filename) {		
 	std::ifstream infile(filename);
 	if (!infile.is_open()){
@@ -91,66 +124,29 @@ bool OrgTree::read(std::string filename) {
 	}
 	std::getline(infile, line);
 	addRoot(line.substr(0, line.find(",")), line.substr(line.find(",")+1));
-	counter++;
-	TREENODEPTR current = getRoot();
-	while (true) {
+	if (infile.peek() == ')'){
 		std::getline(infile, line);
-			//if the line doesnt have ) make a new treeNode
-			if (line.find(')') == std::string::npos) {
-				counter++;
-				current = readHire(current, line.substr(0, line.find(",")), line.substr(line.find(",")+1));				
-			}
-			//contains )
-			else {
-				counter--;
-				if (infile.eof()) {
-					infile.close();
-					if (!counter){						
-						return true;
-					}
-					clear(getRoot());
-					root = TREENULLPTR;
-					return false;
-				}
-				std::getline(infile, line);
-				if (line.at(0) == ')') {
-					counter--;
-					current = current->parent;
-					if (infile.eof()) {
-						if (!counter) {
-							infile.close();
-							return true;
-						}
-						clear(getRoot());
-						root = TREENULLPTR;
-						infile.close();
-						return false;
-					}
-					std::getline(infile, line);
-					while (line.at(0) == ')') {
-						counter--;
-						if (infile.eof()) {
-							if (!counter) {
-								infile.close();
-								return true;
-							}
-							clear(getRoot());
-							root = TREENULLPTR;
-							infile.close();
-							return false;
-							//check for correct file format
-						}
-						std::getline(infile, line);
-						
-						current = current->parent;
-					}				
-				}				
-					counter++;
-					current = readHire(current->parent, line.substr(0, line.find(",")), line.substr(line.find(",")+1));				
+		if (infile.eof()){
+			infile.close();
+			return true;
 		}
+		clear(getRoot());
+		root = TREENULLPTR;
+		infile.close();
+		return false;
 	}
-}
+	if (!(1+recursiveRead(infile, getRoot()))){
+		infile.close();
+		return true;
+	}
+	clear(getRoot());
+	root = TREENULLPTR;
+	infile.close();
+	return false;
+	}
+//write time complexity
 //O(n)
+//big-theta(n)
 void OrgTree::write(std::string filename) {
 	std::ofstream ofile(filename);
 	recursiveWrite(getRoot(),ofile);
@@ -328,7 +324,7 @@ void OrgTree::clear(TREENODEPTR subRoot) {
 	delete subRoot;
 	
 }
-//return the current node
+//return the current node needed for hire
 TREENODEPTR OrgTree::readHire(TREENODEPTR parent, std::string newTitle, std::string newName) {
 	size++;
 	TREENODEPTR tmp = parent;
